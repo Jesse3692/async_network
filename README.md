@@ -194,3 +194,99 @@ Out[11]: 'GEN_CLOSED'
 6. `g.close()` close方法终止生成器，异常不会被抛出
 
    因为生成器的调用方也就是程序员自己可以控制生成器的启动、暂停、终止，而且可以向生成器内部传入数据，所以这种生成器又叫协程，generator函数既可以叫做生成器函数，也可以叫做协程函数，这是生成器向协程的过渡阶段。
+
+### 预激协程
+
+预先激活生成器（或协程）可以使用next方法，也可以使用生成器的send方法发送None值：g.send(None)。为简化协程的使用，我们可以尝试编写一个装饰器来预激协程，这样创建的协程会立即进入GEN_SUSPENDED状态，可以直接使用send方法。
+
+```python
+In [1]: from functools import wraps                                                                                                                     
+
+In [2]: def coroutine(func):  # 预激协程装饰器
+   ...:     @wraps(func)  # wraps装饰器保证func函数的签名不被修改
+   ...:     def wrapper(*args, **kw): 
+   ...:         g = func(*args, **kw) 
+   ...:         next(g)  # 预激协程
+   ...:         return g  # 返回激活后的协程
+   ...:     return wrapper 
+   ...:
+    
+    
+In [3]: @coroutine  # 使用装饰器重新创建协程函数
+   ...: def generator(): 
+   ...:     i = '激活生成器' 
+   ...:     while True: 
+   ...:         try: 
+   ...:             value = yield i 
+   ...:         except ValueError: 
+   ...:             print('Over') 
+   ...:         i = value 
+   ...:                                                                                                                                                 
+
+In [4]: g = generator()                                                                                                                                 
+
+In [5]: import inspect                                                                                                                                  
+
+In [6]: inspect.getgeneratorstate(g)                                                                                                                    
+Out[6]: 'GEN_SUSPENDED'
+```
+
+
+
+### 协程的返回值
+
+前文“生成器原理”这一小节中提到了`StopIteration`异常的value属性值为生成器（协程）函数的return值，我们可以在使用协程时捕获这个异常并得到这个值。
+
+```python
+In [8]: @coroutine 
+   ...: def generator(): 
+   ...:     l = [] 
+   ...:     while True: 
+   ...:         value = yield 
+   ...:         if value == 'CLOSE': 
+   ...:             break 
+   ...:         l.append(value) 
+   ...:     return l 
+   ...:                                                                                                                                                 
+
+In [9]: g = generator()
+
+In [10]: g.send('hello')
+
+In [11]: g.send('coroutine')
+    
+In [12]: g.send('CLOSE')                                                                                                                                
+---------------------------------------------------------------------------
+StopIteration                             Traceback (most recent call last)
+<ipython-input-12-863c90462435> in <module>
+----> 1 g.send('CLOSE')
+
+StopIteration: ['hello', 'coroutine']
+```
+
+**代码说明如下：**
+
+1. `l = [] `创建列表，保存协程send方法每次发送的参数
+2. `value = yield ` yield表达式不弹出值，仅作暂停之用
+3. `if value == 'CLOSE': ` 如果send方法的参数为CLOSE，break终止while循环，停止生成器，抛出StopIteration异常
+4. `l.append(value) ` 将value添加到列表
+5. `return l ` 设置协程函数的返回值，该值在协程终止抛出StopIteration异常时赋值给value赋值
+
+**可以这样捕获异常：**
+
+```python
+In [13]: g = generator()                                                                                                                                
+
+In [14]: for i in('hello', 'coroutine', 'CLOSE'): 
+    ...:     try: 
+    ...:         g.send(i) 
+    ...:     except StopIteration as e: 
+    ...:         value = e.value 
+    ...:         print('END') 
+    ...:                                                                                                                                                
+END
+
+In [15]: value                                                                                                                                          
+Out[15]: ['hello', 'coroutine']
+```
+
