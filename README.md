@@ -290,3 +290,89 @@ In [15]: value
 Out[15]: ['hello', 'coroutine']
 ```
 
+### 使用yield from
+
+python3.3中新增了yield from语法，这是全新的语言结构，是yield的升级版。相比yield该语法有两大优势：避免嵌套循环、转移控制权
+
+#### 避免嵌套循环
+
+python内置模块`itertools`是十分强大的，里面有很多实用的方法，其中有一个是chain方法，它可以接收任意数量的可迭代对象作为参数，返回一个包含所有参数中的元素的迭代器。
+
+```python
+In [1]: from itertools import chain                                                                                                                     
+
+In [2]: c = chain({'one', 'two'}, list('ace'))                                                                                                          
+
+In [3]: c                                                                                                                                               
+Out[3]: <itertools.chain at 0x7f151c5b2dd8>
+
+In [4]: for i in c: 
+   ...:     print(i) 
+   ...:                                                                                                                                                 
+one
+two
+a
+c
+e
+```
+
+接下来我们使用yield关键字来实现chain方法:
+
+注意这里chain_yield函数的返回值是生成器
+
+```python
+In [5]: def chain_yield(*args): 
+   ...:     for iter_obj in args: 
+   ...:         for i in iter_obj: 
+   ...:             yield i 
+   ...:                                                                                                                                                 
+
+In [6]: c = chain_yield({'one', 'two'}, list('ace'))                                                                                                    
+
+In [7]: c                                                                                                                                               
+Out[7]: <generator object chain_yield at 0x7f151c5b65c8>
+
+In [8]: for i in c: 
+   ...:     print(i) 
+   ...:                                                                                                                                                 
+one
+two
+a
+c
+e
+```
+
+下面我们使用python3.3新增的yield from 语法优化上下文的chain函数。
+
+```python
+In [9]: def chain_yield_from(*args): 
+   ...:     for iter_obj in args: 
+   ...:         yield from iter_obj 
+   ...:                                                                                                                                                 
+
+In [10]: c = chain({'one', 'two'}, list('ace'))                                                                                                         
+
+In [11]: c                                                                                                                                              
+Out[11]: <itertools.chain at 0x7f151d28c8d0>
+
+In [12]: c = chain_yield_from({'one', 'two'}, list('ace'))                                                                                              
+
+In [13]: c                                                                                                                                              
+Out[13]: <generator object chain_yield_from at 0x7f151d2b7728>
+
+In [14]: for i in c: 
+    ...:     print(i) 
+    ...:                                                                                                                                                
+one
+two
+a
+c
+e
+```
+
+可以看到yield from语句可以替代for循环，避免了嵌套循环。同yield一样，yield from语句也只能出现在函数体内部，有yield from语句的函数叫做协程函数或生成器函数。
+
+yield from 后面接收一个可迭代对象，例如上面代码中的`iter_obj`变量，在协程中，可迭代对象往往是协程对象，这样就形成了嵌套协程。
+
+#### 转移控制权
+
