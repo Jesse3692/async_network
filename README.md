@@ -36,7 +36,6 @@ Python的多线程在某些情况下是可以成倍提高程序的运行速度�
 爬虫程序就是I/O密集型程序，而CPU密集型的程序是需要CPU不停运转的。
 
 **模拟爬虫的网络I/O**
-
 主要代码实现：
 
 ```python
@@ -95,24 +94,28 @@ def main2():
 #### 生成器原理
 
 ```python
-In [1]: def fibo(n): 
-   ...:     a, b = 0, 1 
-   ...:     while b < n: 
-   ...:         a, b = b, a + b 
-   ...:         yield a 
-   ...:                                                                                                                                                 
+In [1]: def fibo(n):
+   ...:     a, b = 0, 1
+   ...:     while b < n:
+   ...:         a, b = b, a + b
+   ...:         yield a
+   ...:
 
-In [2]: f = fibo(100)                                                                                                                                   
+In [2]: f = fibo(100)
 
-In [3]: print(f)                                                                                                                                        
+
+In [3]: print(f)
+
 <generator object fibo at 0x7f1b35624ba0>
 
-In [4]: f                                                                                                                                               
+In [4]: f
+
 Out[4]: <generator object fibo at 0x7f1b35624ba0>
 
-In [5]: for i in f: 
-   ...:     print(i) 
-   ...:                                                                                                                                                 
+In [5]: for i in f:
+   ...:     print(i)
+   ...:
+
 1
 1
 2
@@ -146,38 +149,45 @@ In [5]: for i in f:
 **生成器的生命周期：**
 
 ```python
-In [1]: import inspect                                                                                                                                  
+In [1]: import inspect
 
-In [2]: def generator(): 
-   ...:     i = "激活生成器" 
-   ...:     while True: 
-   ...:         try: 
-   ...:             value = yield i 
-   ...:         except ValueError: 
-   ...:             print("Over") 
-   ...:         i = value 
-   ...:                                                                                                                                                 
+In [2]: def generator():
+   ...:     i = "激活生成器"
+   ...:     while True:
+   ...:         try:
+   ...:             value = yield i
+   ...:         except ValueError:
+   ...:             print("Over")
+   ...:         i = value
+   ...:
 
-In [3]: g = generator()                                                                                                                                 
+In [3]: g = generator()
 
-In [4]: inspect.getgeneratorstate(g)                                                                                                                    
+In [4]: inspect.getgeneratorstate(g)
+
 Out[4]: 'GEN_CREATED'
 
-In [5]: next(g)                                                                                                                                         
+In [5]: next(g)
+
 Out[5]: '激活生成器'
 
-In [6]: inspect.getgeneratorstate(g)                                                                                                                    
+In [6]: inspect.getgeneratorstate(g)
+
 Out[6]: 'GEN_SUSPENDED'
 
-In [7]: g.send("Hello Generator")                                                                                                                       
+In [7]: g.send("Hello Generator")
+
 Out[7]: 'Hello Generator'
 
-In [8]: g.throw(ValueError)                                                                                                                             
+In [8]: g.throw(ValueError)
+
 Over
 Out[8]: 'Hello Generator'
 
-In [9]: g.close()                                                                                                                                    
-In [10]: inspect.getgeneratorstate(g)                                                                                                                   
+In [9]: g.close()
+
+In [10]: inspect.getgeneratorstate(g)
+
 Out[11]: 'GEN_CLOSED'
 ```
 
@@ -202,62 +212,64 @@ Out[11]: 'GEN_CLOSED'
 预先激活生成器（或协程）可以使用next方法，也可以使用生成器的send方法发送None值：g.send(None)。为简化协程的使用，我们可以尝试编写一个装饰器来预激协程，这样创建的协程会立即进入GEN_SUSPENDED状态，可以直接使用send方法。
 
 ```python
-In [1]: from functools import wraps                                                                                                                     
+In [1]: from functools import wraps
 
 In [2]: def coroutine(func):  # 预激协程装饰器
    ...:     @wraps(func)  # wraps装饰器保证func函数的签名不被修改
-   ...:     def wrapper(*args, **kw): 
-   ...:         g = func(*args, **kw) 
+   ...:     def wrapper(*args, **kw):
+   ...:         g = func(*args, **kw)
    ...:         next(g)  # 预激协程
    ...:         return g  # 返回激活后的协程
-   ...:     return wrapper 
+   ...:     return wrapper
    ...:
-    
-    
+
+
 In [3]: @coroutine  # 使用装饰器重新创建协程函数
-   ...: def generator(): 
-   ...:     i = '激活生成器' 
-   ...:     while True: 
-   ...:         try: 
-   ...:             value = yield i 
-   ...:         except ValueError: 
-   ...:             print('Over') 
-   ...:         i = value 
-   ...:                                                                                                                                                 
+   ...: def generator():
+   ...:     i = '激活生成器'
+   ...:     while True:
+   ...:         try:
+   ...:             value = yield i
+   ...:         except ValueError:
+   ...:             print('Over')
+   ...:         i = value
+   ...:
 
-In [4]: g = generator()                                                                                                                                 
 
-In [5]: import inspect                                                                                                                                  
+In [4]: g = generator()
 
-In [6]: inspect.getgeneratorstate(g)                                                                                                                    
+
+In [5]: import inspect
+
+In [6]: inspect.getgeneratorstate(g)
+
 Out[6]: 'GEN_SUSPENDED'
 ```
-
-
 
 #### 协程的返回值
 
 前文“生成器原理”这一小节中提到了`StopIteration`异常的value属性值为生成器（协程）函数的return值，我们可以在使用协程时捕获这个异常并得到这个值。
 
 ```python
-In [8]: @coroutine 
-   ...: def generator(): 
-   ...:     l = [] 
-   ...:     while True: 
-   ...:         value = yield 
-   ...:         if value == 'CLOSE': 
-   ...:             break 
-   ...:         l.append(value) 
-   ...:     return l 
-   ...:                                                                                                                                                 
+In [8]: @coroutine
+   ...: def generator():
+   ...:     l = []
+   ...:     while True:
+   ...:         value = yield
+   ...:         if value == 'CLOSE':
+   ...:             break
+   ...:         l.append(value)
+   ...:     return l
+   ...:
 
 In [9]: g = generator()
 
 In [10]: g.send('hello')
 
 In [11]: g.send('coroutine')
-    
-In [12]: g.send('CLOSE')                                                                                                                                
+
+In [12]: g.send('CLOSE')
+
 ---------------------------------------------------------------------------
 StopIteration                             Traceback (most recent call last)
 <ipython-input-12-863c90462435> in <module>
@@ -268,27 +280,29 @@ StopIteration: ['hello', 'coroutine']
 
 **代码说明如下：**
 
-1. `l = [] `创建列表，保存协程send方法每次发送的参数
-2. `value = yield ` yield表达式不弹出值，仅作暂停之用
-3. `if value == 'CLOSE': ` 如果send方法的参数为CLOSE，break终止while循环，停止生成器，抛出StopIteration异常
-4. `l.append(value) ` 将value添加到列表
-5. `return l ` 设置协程函数的返回值，该值在协程终止抛出StopIteration异常时赋值给value赋值
+1. `l = []`创建列表，保存协程send方法每次发送的参数
+2. `value = yield` yield表达式不弹出值，仅作暂停之用
+3. `if value == 'CLOSE':` 如果send方法的参数为CLOSE，break终止while循环，停止生成器，抛出StopIteration异常
+4. `l.append(value)` 将value添加到列表
+5. `return l` 设置协程函数的返回值，该值在协程终止抛出StopIteration异常时赋值给value赋值
 
 **可以这样捕获异常：**
 
 ```python
-In [13]: g = generator()                                                                                                                                
+In [13]: g = generator()
 
-In [14]: for i in('hello', 'coroutine', 'CLOSE'): 
-    ...:     try: 
-    ...:         g.send(i) 
-    ...:     except StopIteration as e: 
-    ...:         value = e.value 
-    ...:         print('END') 
-    ...:                                                                                                                                                
+In [14]: for i in('hello', 'coroutine', 'CLOSE'):
+    ...:     try:
+    ...:         g.send(i)
+    ...:     except StopIteration as e:
+    ...:         value = e.value
+    ...:         print('END')
+    ...:
+
 END
 
-In [15]: value                                                                                                                                          
+In [15]: value
+
 Out[15]: ['hello', 'coroutine']
 ```
 
@@ -301,16 +315,17 @@ python3.3中新增了yield from语法，这是全新的语言结构，是yield�
 python内置模块`itertools`是十分强大的，里面有很多实用的方法，其中有一个是chain方法，它可以接收任意数量的可迭代对象作为参数，返回一个包含所有参数中的元素的迭代器。
 
 ```python
-In [1]: from itertools import chain                                                                                                                     
+In [1]: from itertools import chain
 
-In [2]: c = chain({'one', 'two'}, list('ace'))                                                                                                          
+In [2]: c = chain({'one', 'two'}, list('ace'))
 
-In [3]: c                                                                                                                                               
+In [3]: c
 Out[3]: <itertools.chain at 0x7f151c5b2dd8>
 
-In [4]: for i in c: 
-   ...:     print(i) 
-   ...:                                                                                                                                                 
+In [4]: for i in c:
+   ...:     print(i)
+   ...:
+
 one
 two
 a
@@ -323,20 +338,21 @@ e
 注意这里chain_yield函数的返回值是生成器
 
 ```python
-In [5]: def chain_yield(*args): 
-   ...:     for iter_obj in args: 
-   ...:         for i in iter_obj: 
-   ...:             yield i 
-   ...:                                                                                                                                                 
+In [5]: def chain_yield(*args):
+   ...:     for iter_obj in args:
+   ...:         for i in iter_obj:
+   ...:             yield i
+   ...:
 
-In [6]: c = chain_yield({'one', 'two'}, list('ace'))                                                                                                    
+In [6]: c = chain_yield({'one', 'two'}, list('ace'))
 
-In [7]: c                                                                                                                                               
+In [7]: c
 Out[7]: <generator object chain_yield at 0x7f151c5b65c8>
 
-In [8]: for i in c: 
-   ...:     print(i) 
-   ...:                                                                                                                                                 
+In [8]: for i in c:
+   ...:     print(i)
+   ...:
+
 one
 two
 a
@@ -347,24 +363,27 @@ e
 下面我们使用python3.3新增的yield from 语法优化上下文的chain函数。
 
 ```python
-In [9]: def chain_yield_from(*args): 
-   ...:     for iter_obj in args: 
-   ...:         yield from iter_obj 
-   ...:                                                                                                                                                 
+In [9]: def chain_yield_from(*args):
+   ...:     for iter_obj in args:
+   ...:         yield from iter_obj
+   ...:
 
-In [10]: c = chain({'one', 'two'}, list('ace'))                                                                                                         
+In [10]: c = chain({'one', 'two'}, list('ace'))
 
-In [11]: c                                                                                                                                              
+In [11]: c
+
 Out[11]: <itertools.chain at 0x7f151d28c8d0>
 
-In [12]: c = chain_yield_from({'one', 'two'}, list('ace'))                                                                                              
+In [12]: c = chain_yield_from({'one', 'two'}, list('ace'))
 
-In [13]: c                                                                                                                                              
+In [13]: c
+
 Out[13]: <generator object chain_yield_from at 0x7f151d2b7728>
 
-In [14]: for i in c: 
-    ...:     print(i) 
-    ...:                                                                                                                                                
+In [14]: for i in c:
+    ...:     print(i)
+    ...:
+
 one
 two
 a
@@ -469,4 +488,3 @@ if __name__ == "__main__":
 ```
 
 所谓的“转移控制权”就是yield from语法可以将子生成器的控制权交给调用方main函数，在main函数内部创建父生成器c，控制c.send方法传值给子生成器。这是一个巨大的进步，在此基础上，python3.4新增了创建协程的装饰器，这样非生成器函数的协程函数就正式出现了。
-
