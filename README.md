@@ -547,3 +547,45 @@ This is a coroutine
 - `coroutine = do_some_work()`调用协程函数获取协程对象；
 - `loop.run_until_complete(coroutine)`是将协程对象注入到事件循环，协程的运行由事件循环控制。事件的循环`run_until_complete`方法会阻塞运行，直到任务全部完成。协程对象作为`run_until_complete`方法的参数，loop会自动将协程对象包装成任务来运行。
 
+#### 协程的任务状态
+
+协程对象不能直接运行，必须放入事件循环中或者由yield from进行调用。将协程对象注入事件循环的时候，其实是run_until_complete方法将协程对象包装成一个task任务对象，任务对象保存了协程运行后的状态用于未来获取协程的结果。
+
+下面的示例中，主要是创建一个任务对象以及任务对象的状态查看
+
+```python
+In [1]: import time
+
+In [2]: import asyncio
+
+   ...:         time.sleep(0.1)
+   ...:         print('This is a coroutine')
+   ...:     loop = asyncio.get_event_loop()
+   ...:     coroutine =do_some_work()
+   ...:     task = loop.create_task(coroutine)
+   ...:     print('task是不是asyncio.Task的实例？ ', isinstance(task, asyncio.Task))
+   ...:     print('Task state:', task._state)
+   ...:     loop.run_until_complete(task)
+   ...:     print('Task state:', task._state)
+   ...:     end = time.time()
+   ...:     print('运行耗时：{:.4f}'.format(end - start))
+   ...:
+
+In [4]: two()
+task是不是asyncio.Task的实例？  True
+Task state: PENDING
+Start coroutine
+This is a coroutine
+Task state: FINISHED
+运行耗时：0.1006
+```
+
+**代码说明如下：**
+
+- `task = loop.create_task(coroutine)`使用事件循环的create_task方法创建任务对象
+
+- `print('task是不是asyncio.Task的实例？', isinstance(task, asyncio.Task))` task是asyncio.Task类的实例，那么为什么使用协程对象创建任务？这是因为在这个过程中asyncio.Task做了一些工作，其中包括预激协程、协程运行中遇到异常时的处理
+
+- `print('Task state:', task._state)` 查看任务对象的状态，task对象的_state属性保存当前任务的运行状态，任务的运行状态有`PENDING`和`FINISHED`两种
+
+- `loop.run_until_complete(task)` 将任务对象注入到事件循环中
