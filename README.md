@@ -488,3 +488,62 @@ if __name__ == "__main__":
 ```
 
 所谓的“转移控制权”就是yield from语法可以将子生成器的控制权交给调用方main函数，在main函数内部创建父生成器c，控制c.send方法传值给子生成器。这是一个巨大的进步，在此基础上，python3.4新增了创建协程的装饰器，这样非生成器函数的协程函数就正式出现了。
+
+## asynciomo模块
+
+Python之父龟叔在Python仓库之外开发了一个新项目，旨在解决Python异步编程的诸多问题，他把这个项目的代号命名为“Tulip”郁金香。Python3.4把Tulip添加到标准库中时，将其命名为asyncio。
+
+### asyncio模块简介
+
+#### 协程装饰器
+
+在Python3.4中，asyncio模块出现，此时创建协程函数必须使用asyncio.coroutine装饰器标记。此前包含yield from语句的函数既可以称作生成器函数也可以称作协程函数，为了突出协程的重要性，现在使用asyncio.coroutine装饰器的函数就是真正的协程函数了。
+
+#### 任务和事件循环
+
+在asyncio模块中出现了一些新的概念，有coroutine协程、task任务，event_loop事件循环
+
+**coroutine协程**，协程对象，使用asyncio.coroutine装饰器装饰的函数被称作协程函数，它的调用不会立即执行函数而是返回一个协程对象，即协程函数的运行结果为协程对象，注意这里说的“运行结果”不是return值。协程对象需要包装成任务注入到事件循环，由事件循环调用。
+
+**task任务**将协程对象作为参数创建任务，任务是对协程对象的进一步封装，其中包含任务的各种状态。
+
+**event_loop事件循环**可以将多线程类比为工厂中的多个车间，而协程就是车间中的多台机器。在线程级程序中，一个车间只能有一台机器启动，要想提高工作效率，可以启动多个车间中的机器；而在协程程序中，一个车间中的不同机器可以同时运转，启动机器、暂停运转、延时启动、停止机器等操作都可以人为设置。
+
+事件循环能够控制任务运行流程，也就是任务的调用方。
+
+#### 一个简单的例子
+
+下面这个例子中只是简单的写了一个协程的例子，使用`time.sleep(0.1)`模拟了`I/O`操作。
+
+```python
+In [1]: import time
+
+In [2]: import asyncio
+
+   ...:     start = time.time()
+   ...:     @asyncio.coroutine
+   ...:     def do_some_work():
+   ...:         print('Start coroutine')
+   ...:         time.sleep(0.1)
+   ...:         print('This is a coroutine')
+   ...:     loop = asyncio.get_event_loop()
+   ...:     coroutine = do_some_work()
+   ...:     loop.run_until_complete(coroutine)
+   ...:     end = time.time()
+   ...:     print('运行耗时：{:.4f}'.format(end - start))
+   ...:
+
+In [4]: one()
+Start coroutine
+This is a coroutine
+运行耗时：0.1008
+```
+
+**代码说明：**
+
+- `@asyncio.coroutine`是协程装饰器，被它装饰的是协程函数；
+- `time.sleep(0.1)`是模拟的I/O操作；
+- `loop = asyncio.get_event_loop()`是创建事件循环（每个线程中只能有一个事件循环，get_event_loop方法会获取当前已经存在的事件循环，如果当前线程中没有，则新建一个）；
+- `coroutine = do_some_work()`调用协程函数获取协程对象；
+- `loop.run_until_complete(coroutine)`是将协程对象注入到事件循环，协程的运行由事件循环控制。事件的循环`run_until_complete`方法会阻塞运行，直到任务全部完成。协程对象作为`run_until_complete`方法的参数，loop会自动将协程对象包装成任务来运行。
+

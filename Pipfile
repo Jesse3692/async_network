@@ -1,0 +1,14 @@
+[[source]]
+name = "pypi"
+url = "http://mirrors.tencentyun.com/pypi/simple"
+verify_ssl = true
+
+[dev-packages]
+pylint = "*"
+
+[packages]
+faker = "==4.0.3"
+ipython = "*"
+
+[requires]
+python_version = "3.6"
