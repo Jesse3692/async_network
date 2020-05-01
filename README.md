@@ -1,4 +1,4 @@
-# Python异步网络并发编程
+# Python 异步网络并发编程
 
 ## 从线程到协程
 
@@ -8,34 +8,34 @@
 
 我们常见的操作系统（Windows，Linux，MacOS），都是支持多进程的多核操作系统。**所谓多进程**，就是操作系统可以同时执行多个任务。在操作系统中，每个任务就是一个进程。在同一个进程中有多个线程运行就是多线程。
 
-一个CPU在某一时刻只能做一项任务，即在一个进程（或线程）中工作，当它闲置时，会被系统派到其他进程中。单核计算机也可以实现多进程，原理是时间片轮转，也就是进程切换。但是什么时候进行进程、线程切换是由操作系统决定的，**无法人为干预**。
+一个 CPU 在某一时刻只能做一项任务，即在一个进程（或线程）中工作，当它闲置时，会被系统派到其他进程中。单核计算机也可以实现多进程，原理是时间片轮转，也就是进程切换。但是什么时候进行进程、线程切换是由操作系统决定的，**无法人为干预**。
 
 #### 线程安全
 
-在python多线程中，变量是共享的，这也是相较多进程的一个优点，线程占用资源要少的多，但也导致多个CPU同时操作多个线程时会引起结果无法预测的问题，也就是说Python的线程是不安全的。
+在 python 多线程中，变量是共享的，这也是相较多进程的一个优点，线程占用资源要少的多，但也导致多个 CPU 同时操作多个线程时会引起结果无法预测的问题，也就是说 Python 的线程是不安全的。
 
-#### GIL全局解释器锁
+#### GIL 全局解释器锁
 
-由于上面提到线程是不安全的，那么怎么解决呢？CPython解释器使用了加锁的方式：每个进程有一把锁，启动线程先加锁，结束线程释放锁，也就是GIL（Global Interperter Lock）全局解释器锁，在任意时刻解释器中只有一个线程，这样就保证了线程的安全性。当然GIL的存在有很多其他益处，包括简化CPython解释器和大量扩展的实现。
+由于上面提到线程是不安全的，那么怎么解决呢？CPython 解释器使用了加锁的方式：每个进程有一把锁，启动线程先加锁，结束线程释放锁，也就是 GIL（Global Interperter Lock）全局解释器锁，在任意时刻解释器中只有一个线程，这样就保证了线程的安全性。当然 GIL 的存在有很多其他益处，包括简化 CPython 解释器和大量扩展的实现。
 
-GIL实现了线程操作的安全性，但多线程的效率被大打折扣。
+GIL 实现了线程操作的安全性，但多线程的效率被大打折扣。
 
-注意，GIL不是语言特性，而是解释器的设计特点，有些Python解释器就没有GIL（JPython），其他语言比如Ruby也有GIL设计。
+注意，GIL 不是语言特性，而是解释器的设计特点，有些 Python 解释器就没有 GIL（JPython），其他语言比如 Ruby 也有 GIL 设计。
 
 #### 多线程提高工作效率
 
-Python的多线程在某些情况下是可以成倍提高程序的运行速度的，像是爬虫等网络I/O比较多的工作。
+Python 的多线程在某些情况下是可以成倍提高程序的运行速度的，像是爬虫等网络 I/O 比较多的工作。
 
-在爬虫这个场景中，CPU做的事就是发起页面请求和处理响应数据，这两步是极快的，中间网络传输数据的过程是耗时且不占用CPU的。像这种情况，CPU再多也没用，一个CPU抽空就能完成整个任务了，毕竟程序中需要CPU完成的工作并不多。
+在爬虫这个场景中，CPU 做的事就是发起页面请求和处理响应数据，这两步是极快的，中间网络传输数据的过程是耗时且不占用 CPU 的。像这种情况，CPU 再多也没用，一个 CPU 抽空就能完成整个任务了，毕竟程序中需要 CPU 完成的工作并不多。
 
 这样就涉及到复杂程序的分类了：
 
-- CPU密集型
-- I/O密集型
+- CPU 密集型
+- I/O 密集型
 
-爬虫程序就是I/O密集型程序，而CPU密集型的程序是需要CPU不停运转的。
+爬虫程序就是 I/O 密集型程序，而 CPU 密集型的程序是需要 CPU 不停运转的。
 
-**模拟爬虫的网络I/O**
+**模拟爬虫的网络 I/O**
 主要代码实现：
 
 ```python
@@ -64,7 +64,7 @@ def main2():
         t.join()
 ```
 
-[完整代码-模拟网络爬虫中的I/O操作以及单线程和多线程的简单应用](./s1/thread.py)
+[完整代码-模拟网络爬虫中的 I/O 操作以及单线程和多线程的简单应用](./s1/thread.py)
 
 运行结果:
 
@@ -73,15 +73,15 @@ def main2():
 多线程爬虫耗时：0.2490
 ```
 
-从运行结果上看，单线程（main1）的运行时间是多线程（mian2）运行时间的100倍，考虑到多线程创建、切换的开销，这个结果也是相当可观的，I/O操作耗时越长，多线程的威力越大。
+从运行结果上看，单线程（main1）的运行时间是多线程（mian2）运行时间的 100 倍，考虑到多线程创建、切换的开销，这个结果也是相当可观的，I/O 操作耗时越长，多线程的威力越大。
 
 #### 异步和同步、阻塞和非阻塞
 
-上面的爬虫示例中，单线程中的for循环运行100次爬取网页的操作，只有前一个执行完后一个才能执行，这就是同步的概念，而在爬虫函数内部的I/O操作为阻塞操作，线程无法向下执行。
+上面的爬虫示例中，单线程中的 for 循环运行 100 次爬取网页的操作，只有前一个执行完后一个才能执行，这就是同步的概念，而在爬虫函数内部的 I/O 操作为阻塞操作，线程无法向下执行。
 
-多线程中的第一个for循环是，是创建100个线程并启动，这个操作是非阻塞的，不会等一个线程执行完再创建下一个线程，它是一口气创建100个线程并启动；而第二个for循环是将主线程挂起，直到所有的子线程完成，测试的主线程就是阻塞的，这种的程序运行的方式就是异步，CPU在遇到I/O阻塞的时候不会在那一直等待的，而是被操作系统派往其他线程看看有没有可做的。
+多线程中的第一个 for 循环是，是创建 100 个线程并启动，这个操作是非阻塞的，不会等一个线程执行完再创建下一个线程，它是一口气创建 100 个线程并启动；而第二个 for 循环是将主线程挂起，直到所有的子线程完成，测试的主线程就是阻塞的，这种的程序运行的方式就是异步，CPU 在遇到 I/O 阻塞的时候不会在那一直等待的，而是被操作系统派往其他线程看看有没有可做的。
 
-所谓的异步，就是CPU在当前线程阻塞时可以去其他线程中工作，不管怎么设计，在一个线程内部的代码都是顺序执行的，遇到I/O都得阻塞，所谓的非阻塞就是当前线程遇到阻塞时，CPU去其他线程工作。
+所谓的异步，就是 CPU 在当前线程阻塞时可以去其他线程中工作，不管怎么设计，在一个线程内部的代码都是顺序执行的，遇到 I/O 都得阻塞，所谓的非阻塞就是当前线程遇到阻塞时，CPU 去其他线程工作。
 
 ### 协程初步
 
@@ -89,7 +89,7 @@ def main2():
 
 **协程**是在线程的基础上编写由程序员决定代码执行顺序、可以相互影响的高耦合度代码的一种高级程序设计模式。
 
-上文说到`不论如何设计，在一个线程内部，代码都是顺序执行的，遇到I/O都会阻塞`，直到出现了协程，这句话就成了伪命题。一个线程中可以有多个协程，当一个协程遇到I/O阻塞时，就可以手动的控制CPU去另一个协程中工作，此外连创建线程和切换线程的开销都省了。
+上文说到`不论如何设计，在一个线程内部，代码都是顺序执行的，遇到I/O都会阻塞`，直到出现了协程，这句话就成了伪命题。一个线程中可以有多个协程，当一个协程遇到 I/O 阻塞时，就可以手动的控制 CPU 去另一个协程中工作，此外连创建线程和切换线程的开销都省了。
 
 #### 生成器原理
 
@@ -129,21 +129,21 @@ In [5]: for i in f:
 89
 ```
 
-函数体内部有yield关键字的都是生成器函数，所以这里fibo是生成器函数。yield关键字只能出现在函数中，生成器函数的执行结果是生成器，注意这里所讲的“执行结果”不是函数的return值。生成器终止时必定抛出StopIteration异常，而for循环可以捕获，异常的value属性值为生成器函数的return值。
+函数体内部有 yield 关键字的都是生成器函数，所以这里 fibo 是生成器函数。yield 关键字只能出现在函数中，生成器函数的执行结果是生成器，注意这里所讲的“执行结果”不是函数的 return 值。生成器终止时必定抛出 StopIteration 异常，而 for 循环可以捕获，异常的 value 属性值为生成器函数的 return 值。
 
-生成器还可以用next方法迭代。生成器会在yield语句处暂停，这是至关重要的，未来协程中的I/O阻塞就出现在这里。
+生成器还可以用 next 方法迭代。生成器会在 yield 语句处暂停，这是至关重要的，未来协程中的 I/O 阻塞就出现在这里。
 
 #### 生成器进化成协程
 
-生成器是由迭代器进化而来的，所以生成器对象有`__iter__`和`__next__`方法，可以使用for循环获得值，注意这里所说的“获得值”指的是下文代码块中yield语句中yield关键字后面的i。
+生成器是由迭代器进化而来的，所以生成器对象有`__iter__`和`__next__`方法，可以使用 for 循环获得值，注意这里所说的“获得值”指的是下文代码块中 yield 语句中 yield 关键字后面的 i。
 
-这是在python2.5时出现的特性，在python3.3中出现yield from语法之前，生成器没有太大用处。但此时yield关键字还是实现了一些特性，而且至关重要，就是生成器对象有send、throw和close方法。这三个方法的作用分别是发送数据给生成器并赋值给yield语句、向生成器抛入异常由生成器内部处理、终止生成器，有这三个方法后才能使得生成器进化为协程。
+这是在 python2.5 时出现的特性，在 python3.3 中出现 yield from 语法之前，生成器没有太大用处。但此时 yield 关键字还是实现了一些特性，而且至关重要，就是生成器对象有 send、throw 和 close 方法。这三个方法的作用分别是发送数据给生成器并赋值给 yield 语句、向生成器抛入异常由生成器内部处理、终止生成器，有这三个方法后才能使得生成器进化为协程。
 
 **生成器（或协程）有四种存在状态：**
 
 - GEN_CREATED 创建完成，等待执行
 - GEN_RUNNING 解释器正在执行（这个状态一般观察不到）
-- GEN_SUSPENDED 在yield表达式处暂停
+- GEN_SUSPENDED 在 yield 表达式处暂停
 - GEN_CLOSE 执行结束，生成器停止
 
 **生成器的生命周期：**
@@ -197,19 +197,19 @@ Out[11]: 'GEN_CLOSED'
 
 2. `inspect.getgeneratorstate(g)` 查看生成器状态
 
-3. `next(g)` 预激生成器（或协程），这是必须要做的。在生成器创建完成后，需要将其第一次运行到yield语句处暂停。
+3. `next(g)` 预激生成器（或协程），这是必须要做的。在生成器创建完成后，需要将其第一次运行到 yield 语句处暂停。
 
-4. `g.send("Hello Generator")` 暂停状态的生成器可以使用send方法发送数据，此方法的参数就是yield表达式的值，也就是yield表达式等号前面的value变量的值直接变成了“HelloGenerator”，继续向下执行完一次while循环，变量i被赋值，继续运行下一次循环，yield表达式弹出变量i
+4. `g.send("Hello Generator")` 暂停状态的生成器可以使用 send 方法发送数据，此方法的参数就是 yield 表达式的值，也就是 yield 表达式等号前面的 value 变量的值直接变成了“HelloGenerator”，继续向下执行完一次 while 循环，变量 i 被赋值，继续运行下一次循环，yield 表达式弹出变量 i
 
-5. `g.throw(ValueError)` 向生成器抛入异常，异常会被try except捕获，作进一步处理
+5. `g.throw(ValueError)` 向生成器抛入异常，异常会被 try except 捕获，作进一步处理
 
-6. `g.close()` close方法终止生成器，异常不会被抛出
+6. `g.close()` close 方法终止生成器，异常不会被抛出
 
-   因为生成器的调用方也就是程序员自己可以控制生成器的启动、暂停、终止，而且可以向生成器内部传入数据，所以这种生成器又叫协程，generator函数既可以叫做生成器函数，也可以叫做协程函数，这是生成器向协程的过渡阶段。
+   因为生成器的调用方也就是程序员自己可以控制生成器的启动、暂停、终止，而且可以向生成器内部传入数据，所以这种生成器又叫协程，generator 函数既可以叫做生成器函数，也可以叫做协程函数，这是生成器向协程的过渡阶段。
 
 #### 预激协程
 
-预先激活生成器（或协程）可以使用next方法，也可以使用生成器的send方法发送None值：g.send(None)。为简化协程的使用，我们可以尝试编写一个装饰器来预激协程，这样创建的协程会立即进入GEN_SUSPENDED状态，可以直接使用send方法。
+预先激活生成器（或协程）可以使用 next 方法，也可以使用生成器的 send 方法发送 None 值：g.send(None)。为简化协程的使用，我们可以尝试编写一个装饰器来预激协程，这样创建的协程会立即进入 GEN_SUSPENDED 状态，可以直接使用 send 方法。
 
 ```python
 In [1]: from functools import wraps
@@ -248,7 +248,7 @@ Out[6]: 'GEN_SUSPENDED'
 
 #### 协程的返回值
 
-前文“生成器原理”这一小节中提到了`StopIteration`异常的value属性值为生成器（协程）函数的return值，我们可以在使用协程时捕获这个异常并得到这个值。
+前文“生成器原理”这一小节中提到了`StopIteration`异常的 value 属性值为生成器（协程）函数的 return 值，我们可以在使用协程时捕获这个异常并得到这个值。
 
 ```python
 In [8]: @coroutine
@@ -280,11 +280,11 @@ StopIteration: ['hello', 'coroutine']
 
 **代码说明如下：**
 
-1. `l = []`创建列表，保存协程send方法每次发送的参数
-2. `value = yield` yield表达式不弹出值，仅作暂停之用
-3. `if value == 'CLOSE':` 如果send方法的参数为CLOSE，break终止while循环，停止生成器，抛出StopIteration异常
-4. `l.append(value)` 将value添加到列表
-5. `return l` 设置协程函数的返回值，该值在协程终止抛出StopIteration异常时赋值给value赋值
+1. `l = []`创建列表，保存协程 send 方法每次发送的参数
+2. `value = yield` yield 表达式不弹出值，仅作暂停之用
+3. `if value == 'CLOSE':` 如果 send 方法的参数为 CLOSE，break 终止 while 循环，停止生成器，抛出 StopIteration 异常
+4. `l.append(value)` 将 value 添加到列表
+5. `return l` 设置协程函数的返回值，该值在协程终止抛出 StopIteration 异常时赋值给 value 赋值
 
 **可以这样捕获异常：**
 
@@ -306,13 +306,13 @@ In [15]: value
 Out[15]: ['hello', 'coroutine']
 ```
 
-### 使用yield from
+### 使用 yield from
 
-python3.3中新增了yield from语法，这是全新的语言结构，是yield的升级版。相比yield该语法有两大优势：避免嵌套循环、转移控制权
+python3.3 中新增了 yield from 语法，这是全新的语言结构，是 yield 的升级版。相比 yield 该语法有两大优势：避免嵌套循环、转移控制权
 
 #### 避免嵌套循环
 
-python内置模块`itertools`是十分强大的，里面有很多实用的方法，其中有一个是chain方法，它可以接收任意数量的可迭代对象作为参数，返回一个包含所有参数中的元素的迭代器。
+python 内置模块`itertools`是十分强大的，里面有很多实用的方法，其中有一个是 chain 方法，它可以接收任意数量的可迭代对象作为参数，返回一个包含所有参数中的元素的迭代器。
 
 ```python
 In [1]: from itertools import chain
@@ -333,9 +333,9 @@ c
 e
 ```
 
-接下来我们使用yield关键字来实现chain方法:
+接下来我们使用 yield 关键字来实现 chain 方法:
 
-注意这里chain_yield函数的返回值是生成器
+注意这里 chain_yield 函数的返回值是生成器
 
 ```python
 In [5]: def chain_yield(*args):
@@ -360,7 +360,7 @@ c
 e
 ```
 
-下面我们使用python3.3新增的yield from 语法优化上下文的chain函数。
+下面我们使用 python3.3 新增的 yield from 语法优化上下文的 chain 函数。
 
 ```python
 In [9]: def chain_yield_from(*args):
@@ -391,15 +391,15 @@ c
 e
 ```
 
-可以看到yield from语句可以替代for循环，避免了嵌套循环。同yield一样，yield from语句也只能出现在函数体内部，有yield from语句的函数叫做协程函数或生成器函数。
+可以看到 yield from 语句可以替代 for 循环，避免了嵌套循环。同 yield 一样，yield from 语句也只能出现在函数体内部，有 yield from 语句的函数叫做协程函数或生成器函数。
 
 yield from 后面接收一个可迭代对象，例如上面代码中的`iter_obj`变量，在协程中，可迭代对象往往是协程对象，这样就形成了嵌套协程。
 
 #### 转移控制权
 
-转移控制权是yield from语法的核心功能，也是从生成器进化到协程的重要一步。
+转移控制权是 yield from 语法的核心功能，也是从生成器进化到协程的重要一步。
 
-首先安装伪造数据的faker库，在终端执行`pip install faker`
+首先安装伪造数据的 faker 库，在终端执行`pip install faker`
 
 下面举例说明转移控制权的功能，示例是一个将列表进行排序的程序。
 
@@ -487,27 +487,27 @@ if __name__ == "__main__":
 --------------------------------
 ```
 
-所谓的“转移控制权”就是yield from语法可以将子生成器的控制权交给调用方main函数，在main函数内部创建父生成器c，控制c.send方法传值给子生成器。这是一个巨大的进步，在此基础上，python3.4新增了创建协程的装饰器，这样非生成器函数的协程函数就正式出现了。
+所谓的“转移控制权”就是 yield from 语法可以将子生成器的控制权交给调用方 main 函数，在 main 函数内部创建父生成器 c，控制 c.send 方法传值给子生成器。这是一个巨大的进步，在此基础上，python3.4 新增了创建协程的装饰器，这样非生成器函数的协程函数就正式出现了。
 
-## asynciomo模块
+## asynciomo 模块
 
-Python之父龟叔在Python仓库之外开发了一个新项目，旨在解决Python异步编程的诸多问题，他把这个项目的代号命名为“Tulip”郁金香。Python3.4把Tulip添加到标准库中时，将其命名为asyncio。
+Python 之父龟叔在 Python 仓库之外开发了一个新项目，旨在解决 Python 异步编程的诸多问题，他把这个项目的代号命名为“Tulip”郁金香。Python3.4 把 Tulip 添加到标准库中时，将其命名为 asyncio。
 
-### asyncio模块简介
+### asyncio 模块简介
 
 #### 协程装饰器
 
-在Python3.4中，asyncio模块出现，此时创建协程函数必须使用asyncio.coroutine装饰器标记。此前包含yield from语句的函数既可以称作生成器函数也可以称作协程函数，为了突出协程的重要性，现在使用asyncio.coroutine装饰器的函数就是真正的协程函数了。
+在 Python3.4 中，asyncio 模块出现，此时创建协程函数必须使用 asyncio.coroutine 装饰器标记。此前包含 yield from 语句的函数既可以称作生成器函数也可以称作协程函数，为了突出协程的重要性，现在使用 asyncio.coroutine 装饰器的函数就是真正的协程函数了。
 
 #### 任务和事件循环
 
-在asyncio模块中出现了一些新的概念，有coroutine协程、task任务，event_loop事件循环
+在 asyncio 模块中出现了一些新的概念，有 coroutine 协程、task 任务，event_loop 事件循环
 
-**coroutine协程**，协程对象，使用asyncio.coroutine装饰器装饰的函数被称作协程函数，它的调用不会立即执行函数而是返回一个协程对象，即协程函数的运行结果为协程对象，注意这里说的“运行结果”不是return值。协程对象需要包装成任务注入到事件循环，由事件循环调用。
+**coroutine 协程**，协程对象，使用 asyncio.coroutine 装饰器装饰的函数被称作协程函数，它的调用不会立即执行函数而是返回一个协程对象，即协程函数的运行结果为协程对象，注意这里说的“运行结果”不是 return 值。协程对象需要包装成任务注入到事件循环，由事件循环调用。
 
-**task任务**将协程对象作为参数创建任务，任务是对协程对象的进一步封装，其中包含任务的各种状态。
+**task 任务**将协程对象作为参数创建任务，任务是对协程对象的进一步封装，其中包含任务的各种状态。
 
-**event_loop事件循环**可以将多线程类比为工厂中的多个车间，而协程就是车间中的多台机器。在线程级程序中，一个车间只能有一台机器启动，要想提高工作效率，可以启动多个车间中的机器；而在协程程序中，一个车间中的不同机器可以同时运转，启动机器、暂停运转、延时启动、停止机器等操作都可以人为设置。
+**event_loop 事件循环**可以将多线程类比为工厂中的多个车间，而协程就是车间中的多台机器。在线程级程序中，一个车间只能有一台机器启动，要想提高工作效率，可以启动多个车间中的机器；而在协程程序中，一个车间中的不同机器可以同时运转，启动机器、暂停运转、延时启动、停止机器等操作都可以人为设置。
 
 事件循环能够控制任务运行流程，也就是任务的调用方。
 
@@ -542,14 +542,14 @@ This is a coroutine
 **代码说明：**
 
 - `@asyncio.coroutine`是协程装饰器，被它装饰的是协程函数；
-- `time.sleep(0.1)`是模拟的I/O操作；
-- `loop = asyncio.get_event_loop()`是创建事件循环（每个线程中只能有一个事件循环，get_event_loop方法会获取当前已经存在的事件循环，如果当前线程中没有，则新建一个）；
+- `time.sleep(0.1)`是模拟的 I/O 操作；
+- `loop = asyncio.get_event_loop()`是创建事件循环（每个线程中只能有一个事件循环，get_event_loop 方法会获取当前已经存在的事件循环，如果当前线程中没有，则新建一个）；
 - `coroutine = do_some_work()`调用协程函数获取协程对象；
-- `loop.run_until_complete(coroutine)`是将协程对象注入到事件循环，协程的运行由事件循环控制。事件的循环`run_until_complete`方法会阻塞运行，直到任务全部完成。协程对象作为`run_until_complete`方法的参数，loop会自动将协程对象包装成任务来运行。
+- `loop.run_until_complete(coroutine)`是将协程对象注入到事件循环，协程的运行由事件循环控制。事件的循环`run_until_complete`方法会阻塞运行，直到任务全部完成。协程对象作为`run_until_complete`方法的参数，loop 会自动将协程对象包装成任务来运行。
 
 #### 协程的任务状态
 
-协程对象不能直接运行，必须放入事件循环中或者由yield from进行调用。将协程对象注入事件循环的时候，其实是run_until_complete方法将协程对象包装成一个task任务对象，任务对象保存了协程运行后的状态用于未来获取协程的结果。
+协程对象不能直接运行，必须放入事件循环中或者由 yield from 进行调用。将协程对象注入事件循环的时候，其实是 run_until_complete 方法将协程对象包装成一个 task 任务对象，任务对象保存了协程运行后的状态用于未来获取协程的结果。
 
 下面的示例中，主要是创建一个任务对象以及任务对象的状态查看
 
@@ -582,10 +582,69 @@ Task state: FINISHED
 
 **代码说明如下：**
 
-- `task = loop.create_task(coroutine)`使用事件循环的create_task方法创建任务对象
+- `task = loop.create_task(coroutine)`使用事件循环的 create_task 方法创建任务对象
 
-- `print('task是不是asyncio.Task的实例？', isinstance(task, asyncio.Task))` task是asyncio.Task类的实例，那么为什么使用协程对象创建任务？这是因为在这个过程中asyncio.Task做了一些工作，其中包括预激协程、协程运行中遇到异常时的处理
+- `print('task是不是asyncio.Task的实例？', isinstance(task, asyncio.Task))` task 是 asyncio.Task 类的实例，那么为什么使用协程对象创建任务？这是因为在这个过程中 asyncio.Task 做了一些工作，其中包括预激协程、协程运行中遇到异常时的处理
 
-- `print('Task state:', task._state)` 查看任务对象的状态，task对象的_state属性保存当前任务的运行状态，任务的运行状态有`PENDING`和`FINISHED`两种
+- `print('Task state:', task._state)` 查看任务对象的状态，task 对象的\_state 属性保存当前任务的运行状态，任务的运行状态有`PENDING`和`FINISHED`两种
 
 - `loop.run_until_complete(task)` 将任务对象注入到事件循环中
+
+### async 和 await 关键字
+
+在 Python3.5 中新增了`async`和`await`关键字来定义协程函数。这两个关键字是一个组合，其作用等同于`@asyncio.coroutine`装饰器和 yield from 语句，此后协程与生成器就彻底泾渭分明了。
+
+#### 绑定回调
+
+为什么要进行回调的绑定？因为协程中肯定包含一个 IO 操作，等它处理完数据之后，我们希望得到通知，以便下一步数据处理，而这一需求可以通过向 future 对象中添加回调来实现。那什么是 future 对象？task 对象就是 future 对象，我们可以这样认为：因为 asyncio.Task 是 asyncio.Future 的子类，所以 task 对象可以添加回调函数。
+
+回调函数的最后一个参数是 future 或 task 对象，通过该对象可以获取协程返回值。如果回调需要多个参数，可以通过偏函数导入。
+
+简言之，一个任务完成后需要捎带运行的代码可以放到回调函数中：
+
+```python
+import time
+import asyncio
+import functools
+
+
+def three():
+    start = time.time()
+    # @asyncio.coroutine
+    async def corowork():
+        print('[corowork]Start coroutine')
+        time.sleep(0.1)
+        print('[corowork]This is a coroutine')
+
+    def callback(name, task):
+        print('[callback] Hello {}'.format(name))
+        print('[callback] coroutine state: {}'.format(task._state))
+
+    loop = asyncio.get_event_loop()
+    coroutine = corowork()
+    task = loop.create_task(coroutine)
+    task.add_done_callback(functools.partial(callback, 'Jesse'))
+    loop.run_until_complete(task)
+
+    end = time.time()
+    print('运行耗时：{:.4f}'.format(end - start))
+
+
+if __name__ == '__main__':
+    three()
+
+(async_network) [root@VM_0_16_centos async_network]# python -u "/home/jesse/async_network/s2/three.py"
+[corowork]Start coroutine
+[corowork]This is a coroutine
+[callback] Hello Jesse
+[callback] coroutine state: FINISHED
+运行耗时：0.1008
+```
+
+**代码说明如下:**
+
+- `async def corowork():`中使用 async 关键字替代`asyncio.coroutine`装饰器来创建协程函数。
+
+- `def callback(name, task):`这是定义的回调函数，协程终止后需要顺便运行的代码，回调函数的参数有要求，最后一个位置参数必须为 task 对象。
+
+- `task.add_done_callback(functools.partial(callback, 'Jesse'))`task 对象的 add_done_callback 方法可以添加回调函数，注意参数必须是回调函数，这个方法不能传入回调函数的参数，得通过 functools 模块的 partial 方法解决：将回调函数和其参数 name 作为 partial 方法的参数，而返回值就是偏函数，偏函数可作为 task.add_done_callback 方法的参数
