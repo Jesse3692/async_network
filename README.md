@@ -648,3 +648,103 @@ if __name__ == '__main__':
 - `def callback(name, task):`这是定义的回调函数，协程终止后需要顺便运行的代码，回调函数的参数有要求，最后一个位置参数必须为 task 对象。
 
 - `task.add_done_callback(functools.partial(callback, 'Jesse'))`task 对象的 add_done_callback 方法可以添加回调函数，注意参数必须是回调函数，这个方法不能传入回调函数的参数，得通过 functools 模块的 partial 方法解决：将回调函数和其参数 name 作为 partial 方法的参数，而返回值就是偏函数，偏函数可作为 task.add_done_callback 方法的参数
+
+#### 协程多任务
+
+实际项目中，往往有多个协程创建多个任务对象，同时在一个 loop 里运行。为了把多个协程交给 loop，需要借助`asyncio.gather`方法。任务的 result 方法可以获得对应的协程函数的 return 值。
+
+相应的代码如下：
+
+```python
+import time
+import asyncio
+import functools
+
+
+def four():
+    start = time.time()
+    async def corowork(name, t):
+        print('[corowork] Start coroutine', name)
+        await asyncio.sleep(t)
+        print('[corowork] Stop coroutine', name)
+        return 'Coroutine {} OK'.format(name)
+
+    loop = asyncio.get_event_loop()
+    coroutine1 = corowork('ONE', 3)
+    coroutine2 = corowork('TWO', 1)
+    task1 = loop.create_task(coroutine1)
+    task2 = loop.create_task(coroutine2)
+    gather = asyncio.gather(task1, task2)
+    loop.run_until_complete(gather)
+    print('[task1]', task1.result())
+    print('[task2]', task2.result())
+
+    end = time.time()
+    print('运行耗时：{:.4f}'.format(end - start))
+
+
+if __name__ == '__main__':
+    four()
+
+(async_network) [root@VM_0_16_centos async_network]# python -u "/home/jesse/async_network/s2/four.py"
+[corowork] Start coroutine ONE
+[corowork] Start coroutine TWO
+[corowork] Stop coroutine TWO
+[corowork] Stop coroutine ONE
+[task1] Coroutine ONE OK
+[task2] Coroutine TWO OK
+运行耗时：3.0032
+```
+
+**代码说明如下:**
+
+- `await asyncio.sleep(t)`中`await`关键字等同于Python3.4中的yield from语句，后面接协程对象。`asyncio.sleep`方法的返回值为协程对象，这一步为阻塞运行。`asyncio.sleep`与`time.sleep()`是不同的，前者阻塞当前协程，即corowork函数的运行，而`time.sleep()`会阻塞整个线程，所以这里必须使用前者，阻塞当前协程，系统可以调度CPU可以在线程内的其它协程中运行。
+
+将异步的时间休眠换成同步的后，协程代码将变成同步。
+
+```Python
+time.sleep(t)
+
+(async_network) [root@VM_0_16_centos async_network]# python -u "/home/jesse/async_network/s2/four.py"
+[corowork] Start coroutine ONE
+[corowork] Stop coroutine ONE
+[corowork] Start coroutine TWO
+[corowork] Stop coroutine TWO
+['Coroutine ONE OK', 'Coroutine TWO OK']
+运行耗时：4.0050
+```
+
+- `return 'Coroutine {} OK'.format(name)`协程函数的return值可以在协程运行结束后保存到对应的task对象的result方法中。
+
+- 创建两个协程对象，在协程内部分别阻塞3秒和1秒。
+
+- 创建两个任务对象
+
+- `gather = asyncio.gather(task1, task2)`中`asyncio.gather`方法将任务对象作为参数，创建任务收集器。注意，`asyncio.gather`方法中参数的顺序决定了协程的启动顺序。
+
+- `loop.run_until_complete(gather)`，将任务收集器作为参数传入事件循环的`run_until_complete`方法，阻塞运行，直到全部任务完成。
+
+- `print('[task1]', task1.result())` 任务结束后，事件循环停止，打印任务的result方法返回值，即协程函数的return值。
+
+**额外说明的几点**:
+
+- 多数情况下无需调用task的add_done_callback方法，可以直接把回调函数中的代码写入await语句的后面，协程是可以暂停和恢复的。
+
+- 多数情况下同样无需调用task的result方法获取协程函数的return值，因为事件循环的run_until_complete方法的返回值就是协程函数的return值。修改上文的代码如下：
+
+```python
+result = loop.run_until_complete(gather)
+print(result)
+
+(async_network) [root@VM_0_16_centos async_network]# python -u "/home/jesse/async_network/s2/four.py"
+[corowork] Start coroutine ONE
+[corowork] Start coroutine TWO
+[corowork] Stop coroutine TWO
+[corowork] Stop coroutine ONE
+['Coroutine ONE OK', 'Coroutine TWO OK']
+运行耗时：3.0033
+```
+
+- 事件循环有一个stop方法用来停止循环和一个close方法用来关闭循环。以上示例中都没有调用loop.close方法，似乎并没有什么问题。所以到底要不要调用loop.close呢？简单来说，loop只要不关闭，就还可以再次运行run_until_complete方法，关闭后则不可以运行。有人会建议调用loop.close，彻底清理loop对象防止误用，其实多数情况下根本没有这个必要。
+
+- asyncio模块提供了asyncio.gather和asyncio.wait两个任务收集方法，它们的作用相同，都是将协程任务按顺序排定，再将返回值作为参数加入到事件循环中。前者在上文已经用到，后者与前者的区别是它可以获取任务的执行状态（PENDING & FINISHED），当有一些特别的需求例如在某些情况下取消任务，可以使用asyncio.wait方法。
