@@ -698,7 +698,7 @@ if __name__ == '__main__':
 
 **代码说明如下:**
 
-- `await asyncio.sleep(t)`中`await`关键字等同于Python3.4中的yield from语句，后面接协程对象。`asyncio.sleep`方法的返回值为协程对象，这一步为阻塞运行。`asyncio.sleep`与`time.sleep()`是不同的，前者阻塞当前协程，即corowork函数的运行，而`time.sleep()`会阻塞整个线程，所以这里必须使用前者，阻塞当前协程，系统可以调度CPU可以在线程内的其它协程中运行。
+- `await asyncio.sleep(t)`中`await`关键字等同于 Python3.4 中的 yield from 语句，后面接协程对象。`asyncio.sleep`方法的返回值为协程对象，这一步为阻塞运行。`asyncio.sleep`与`time.sleep()`是不同的，前者阻塞当前协程，即 corowork 函数的运行，而`time.sleep()`会阻塞整个线程，所以这里必须使用前者，阻塞当前协程，系统可以调度 CPU 可以在线程内的其它协程中运行。
 
 将异步的时间休眠换成同步的后，协程代码将变成同步。
 
@@ -714,9 +714,9 @@ time.sleep(t)
 运行耗时：4.0050
 ```
 
-- `return 'Coroutine {} OK'.format(name)`协程函数的return值可以在协程运行结束后保存到对应的task对象的result方法中。
+- `return 'Coroutine {} OK'.format(name)`协程函数的 return 值可以在协程运行结束后保存到对应的 task 对象的 result 方法中。
 
-- 创建两个协程对象，在协程内部分别阻塞3秒和1秒。
+- 创建两个协程对象，在协程内部分别阻塞 3 秒和 1 秒。
 
 - 创建两个任务对象
 
@@ -724,13 +724,13 @@ time.sleep(t)
 
 - `loop.run_until_complete(gather)`，将任务收集器作为参数传入事件循环的`run_until_complete`方法，阻塞运行，直到全部任务完成。
 
-- `print('[task1]', task1.result())` 任务结束后，事件循环停止，打印任务的result方法返回值，即协程函数的return值。
+- `print('[task1]', task1.result())` 任务结束后，事件循环停止，打印任务的 result 方法返回值，即协程函数的 return 值。
 
 **额外说明的几点**:
 
-- 多数情况下无需调用task的add_done_callback方法，可以直接把回调函数中的代码写入await语句的后面，协程是可以暂停和恢复的。
+- 多数情况下无需调用 task 的 add_done_callback 方法，可以直接把回调函数中的代码写入 await 语句的后面，协程是可以暂停和恢复的。
 
-- 多数情况下同样无需调用task的result方法获取协程函数的return值，因为事件循环的run_until_complete方法的返回值就是协程函数的return值。修改上文的代码如下：
+- 多数情况下同样无需调用 task 的 result 方法获取协程函数的 return 值，因为事件循环的 run_until_complete 方法的返回值就是协程函数的 return 值。修改上文的代码如下：
 
 ```python
 result = loop.run_until_complete(gather)
@@ -745,6 +745,105 @@ print(result)
 运行耗时：3.0033
 ```
 
-- 事件循环有一个stop方法用来停止循环和一个close方法用来关闭循环。以上示例中都没有调用loop.close方法，似乎并没有什么问题。所以到底要不要调用loop.close呢？简单来说，loop只要不关闭，就还可以再次运行run_until_complete方法，关闭后则不可以运行。有人会建议调用loop.close，彻底清理loop对象防止误用，其实多数情况下根本没有这个必要。
+- 事件循环有一个 stop 方法用来停止循环和一个 close 方法用来关闭循环。以上示例中都没有调用 loop.close 方法，似乎并没有什么问题。所以到底要不要调用 loop.close 呢？简单来说，loop 只要不关闭，就还可以再次运行 run_until_complete 方法，关闭后则不可以运行。有人会建议调用 loop.close，彻底清理 loop 对象防止误用，其实多数情况下根本没有这个必要。
 
-- asyncio模块提供了asyncio.gather和asyncio.wait两个任务收集方法，它们的作用相同，都是将协程任务按顺序排定，再将返回值作为参数加入到事件循环中。前者在上文已经用到，后者与前者的区别是它可以获取任务的执行状态（PENDING & FINISHED），当有一些特别的需求例如在某些情况下取消任务，可以使用asyncio.wait方法。
+- asyncio 模块提供了 asyncio.gather 和 asyncio.wait 两个任务收集方法，它们的作用相同，都是将协程任务按顺序排定，再将返回值作为参数加入到事件循环中。前者在上文已经用到，后者与前者的区别是它可以获取任务的执行状态（PENDING & FINISHED），当有一些特别的需求例如在某些情况下取消任务，可以使用 asyncio.wait 方法。
+
+## asyncio异步编程
+
+基于Python生成器实现异步的模块不止asyncio，还有gevent、greenlet等模块。
+
+### 取消任务
+
+在事件循环启动之后停止之前，我们可以手动取消任务的执行，注意只有PENDING状态的任务才能被取消，FINISHED状态的任务已经完成，不能取消。
+
+#### 事件循环的cancel方法
+
+```python
+import asyncio
+import time
+
+
+async def work(id, t):
+    print('Working...')
+    await asyncio.sleep(t)
+    print('Work {} done'.format(id))
+
+
+def main():
+    loop = asyncio.get_event_loop()
+    coroutines = [work(i, i) for i in range(1, 4)]
+    try:
+        loop.run_until_complete(asyncio.gather(*coroutines))
+    except KeyboardInterrupt:
+        loop.stop()
+    finally:
+        loop.close()
+
+
+if __name__ == "__main__":
+    main()
+
+
+(async_network) [root@VM_0_16_centos async_network]# python -u "/home/jesse/async_network/s3/async_cancel.py"
+Working...
+Working...  # 遇到IO阻塞，释放CPU，CPU到下一个协程中运行
+Working...  # 以上步骤瞬间完成，这时候的loop中全部协程处于阻塞状态
+Work 1 done
+Work 2 done
+Work 3 done  # 
+```
+
+**代码说明**:
+
+- 创建一个列表，列表中有三个协程对象那个，协程内部分别阻塞1-3秒
+
+- 程序运行过程中，快捷键`Ctrl + C`会触发`KeyboardInterrupt`异常。代码捕获异常，在程序终止前完成异常抛出和异常结束中的代码。
+
+- 事件循环的stop方法取消所有未完成的任务，停止事件循环。
+
+- 关闭事件循环
+
+#### task的cancel方法
+
+任务的cancel方法也可以取消任务，而asyncio.Task.all_tasks方法可以获得事件循环中的全部任务。修改上文代码中的main函数如下：
+
+```python
+def main():
+    loop = asyncio.get_event_loop()
+    coroutines = [work(i, i) for i in range(1, 4)]
+    try:
+        loop.run_until_complete(asyncio.gather(*coroutines))
+    except KeyboardInterrupt:
+        print()
+        # 每个线程里只能有一个事件循环
+        # 此方法可以获得事件循环中的所有任务的集合
+        # 任务的状态有 PENDING和FINISHED两种
+        tasks = asyncio.Task.all_tasks()
+        for i in tasks:
+            # 任务的cancel方法可以取消未完成的任务
+            # 取消成功返回True，已完成的任务返回取消失败
+            print('取消任务： {}'.format(i), i._state)
+            print('取消状态: {}'.format(i.cancel()), i._state)
+    finally:
+        loop.close()
+
+(async_network) [root@VM_0_16_centos async_network]# python -u "/home/jesse/async_network/s3/async_cancel.py"
+Working...
+Working...
+Working...
+Work 1 done
+^C
+取消任务： <Task pending coro=<work() running at /home/jesse/async_network/s3/async_cancel.py:7> wait_for=<Future pending cb=[<TaskWakeupMethWrapper object at 0x7f802f4eca08>()]> cb=[gather.<locals>._done_callback(2)() at /usr/lib64/python3.6/asyncio/tasks.py:622]> PENDING
+取消状态: True PENDING
+取消任务： <Task pending coro=<work() running at /home/jesse/async_network/s3/async_cancel.py:7> wait_for=<Future pending cb=[<TaskWakeupMethWrapper object at 0x7f802f4eca38>()]> cb=[gather.<locals>._done_callback(1)() at /usr/lib64/python3.6/asyncio/tasks.py:622]> PENDING
+取消状态: True PENDING
+取消任务： <Task finished coro=<work() done, defined at /home/jesse/async_network/s3/async_cancel.py:5> result=None> FINISHED
+取消状态: False FINISHED
+```
+
+**代码说明**:
+
+- 每个线程里只能有一个事件循环，此方法可以获得事件循环中的所有任务的集合，任务的状态有PENDING和FINISHED两种
+
+- 任务的cancel方法可以取消未完成的任务，取消成功返回True，已完成的任务取消失败返回
