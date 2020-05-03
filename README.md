@@ -749,15 +749,15 @@ print(result)
 
 - asyncio 模块提供了 asyncio.gather 和 asyncio.wait 两个任务收集方法，它们的作用相同，都是将协程任务按顺序排定，再将返回值作为参数加入到事件循环中。前者在上文已经用到，后者与前者的区别是它可以获取任务的执行状态（PENDING & FINISHED），当有一些特别的需求例如在某些情况下取消任务，可以使用 asyncio.wait 方法。
 
-## asyncio异步编程
+## asyncio 异步编程
 
-基于Python生成器实现异步的模块不止asyncio，还有gevent、greenlet等模块。
+基于 Python 生成器实现异步的模块不止 asyncio，还有 gevent、greenlet 等模块。
 
 ### 取消任务
 
-在事件循环启动之后停止之前，我们可以手动取消任务的执行，注意只有PENDING状态的任务才能被取消，FINISHED状态的任务已经完成，不能取消。
+在事件循环启动之后停止之前，我们可以手动取消任务的执行，注意只有 PENDING 状态的任务才能被取消，FINISHED 状态的任务已经完成，不能取消。
 
-#### 事件循环的cancel方法
+#### 事件循环的 cancel 方法
 
 ```python
 import asyncio
@@ -791,22 +791,22 @@ Working...  # 遇到IO阻塞，释放CPU，CPU到下一个协程中运行
 Working...  # 以上步骤瞬间完成，这时候的loop中全部协程处于阻塞状态
 Work 1 done
 Work 2 done
-Work 3 done  # 
+Work 3 done  #
 ```
 
 **代码说明**:
 
-- 创建一个列表，列表中有三个协程对象那个，协程内部分别阻塞1-3秒
+- 创建一个列表，列表中有三个协程对象那个，协程内部分别阻塞 1-3 秒
 
 - 程序运行过程中，快捷键`Ctrl + C`会触发`KeyboardInterrupt`异常。代码捕获异常，在程序终止前完成异常抛出和异常结束中的代码。
 
-- 事件循环的stop方法取消所有未完成的任务，停止事件循环。
+- 事件循环的 stop 方法取消所有未完成的任务，停止事件循环。
 
 - 关闭事件循环
 
-#### task的cancel方法
+#### task 的 cancel 方法
 
-任务的cancel方法也可以取消任务，而asyncio.Task.all_tasks方法可以获得事件循环中的全部任务。修改上文代码中的main函数如下：
+任务的 cancel 方法也可以取消任务，而 asyncio.Task.all_tasks 方法可以获得事件循环中的全部任务。修改上文代码中的 main 函数如下：
 
 ```python
 def main():
@@ -844,6 +844,202 @@ Work 1 done
 
 **代码说明**:
 
-- 每个线程里只能有一个事件循环，此方法可以获得事件循环中的所有任务的集合，任务的状态有PENDING和FINISHED两种
+- 每个线程里只能有一个事件循环，此方法可以获得事件循环中的所有任务的集合，任务的状态有 PENDING 和 FINISHED 两种
 
-- 任务的cancel方法可以取消未完成的任务，取消成功返回True，已完成的任务取消失败返回
+- 任务的 cancel 方法可以取消未完成的任务，取消成功返回 True，已完成的任务取消失败返回
+
+### 排定任务
+
+排定 task/future 在事件循环中的执行顺序，也就是对应的协程先执行哪个，遇到 IO 阻塞时，CPU 转而运行哪个任务，这是我们在运行异步编程时一个需求。前文所示的多任务程序中，事件循环里的任务的执行顺序由`asyncio.ensure_future`、`loop.create_task`和`asyncio.gather`排定，这一节介绍 loop 的其他方法。
+
+#### loop.run_forever 无限运行事件循环
+
+事件循环的 run_until_complete 方法运行事件循环，当其中的全部任务完成后，自动停止事件循环；run_forever 方法为无限运行事件循环，需要自定义 loop.stop 方法并执行之后才会停止。
+
+```Python
+import asyncio
+
+
+async def work(loop, t):
+    print('Start')
+    await asyncio.sleep(t)
+    print('after {}s stop'.format(t))
+    loop.stop()  # 停止事件循环，stop后仍可以重新运行
+
+loop = asyncio.get_event_loop()  # 创建事件循环
+task = asyncio.ensure_future(work(loop, 1))  # 创建任务，该任务会自动加入事件循环
+loop.run_forever()  # 无限运行事件循环，直至loop.stop停止
+loop.close()  # 关闭事件循环，只有loop处于停止状态才会执行
+
+(async_network) [root@VM_0_16_centos async_network]# python -u "/home/jesse/async_network/s3/run_forever.py"
+Start
+after 1s stop
+```
+
+以上是单任务事件循环，将 loop 作为参数传入协程函数创建协程，在协程内部执行 loop.stop 方法停止事件循环。
+
+下面是多任务事件循环，使用回调函数执行 loop.stop 停止事件循环，修改代码如下：
+
+```Python
+import asyncio
+import functools
+import time
+
+
+def loop_stop(loop, future):  # 函数的最后一个参数须为future/task
+    loop.stop()  # 停止事件循环，stop后仍可重新运行
+
+
+async def work(t):
+    print('Start')
+    await asyncio.sleep(t)
+    print('after {}s stop'.format(t))
+
+
+def main():
+    loop = asyncio.get_event_loop()  # 创建事件循环
+    # 创建任务收集器，参数为任意数量的协程，任务收集器本身也是task/future对象
+    tasks = asyncio.gather(work(1), work(2))  # 创建任务，该任务会自动加入事件循环
+    # 任务收集器的add_done_callback方法添加回调函数
+    # 当所有任务完成后，自动运行此回调函数
+    # 注意，add_done_callback方法的参数是回调函数
+    # 这里使用functools.partial方法创建偏函数以便将loop作为参数加入
+    tasks.add_done_callback(functools.partial(loop_stop, loop))
+    loop.run_forever()  # 无限运行事件循环，直至loop.stop停止
+    loop.close()  # 关闭事件循环，只有loop处于停止状态才会执行
+
+
+if __name__ == '__main__':
+    start = time.time()
+    main()
+    end = time.time()
+    print('运行耗时：{:.4f}'.format(end - start))
+
+
+(async_network) [root@VM_0_16_centos async_network]# python -u "/home/jesse/async_network/s3/run_forever_callback.py"
+Start
+Start
+after 1s stop
+after 2s stop
+运行耗时：2.0022
+```
+
+loop.run_until_complete 方法本身也是调用 loop.run_forever 方法，然后通过回调函数调用 loop.stop 方法实现的。
+
+#### loop.call_soon 排定普通函数到事件循环
+
+事件循环的 call_soon 方法可以将普通函数作为任务加入到事件循环并立即排定任务的执行顺序。
+
+```python
+import asyncio
+import time
+
+
+def hello(name):
+    """普通函数"""
+    print('[hello] Hello, {}'.format(name))
+
+
+async def work(t, name):
+    """协程函数"""
+    print('[work] start', name)
+    await asyncio.sleep(t)
+    print('[work] {} after {}s stop'.format(name, t))
+
+
+def main():
+    loop = asyncio.get_event_loop()
+    # 向事件循环中添加任务
+    asyncio.ensure_future(work(1, 'A'))  # 第一个执行
+    # call_soon将普通函数作为task加入到事件循环并排定执行顺序
+    # 该方法的第一个参数为普通函数名字，普通函数的参数写在后面
+    loop.call_soon(hello, 'Tom')         # 第二个执行
+    # 向事件循环中添加任务
+    loop.create_task(work(2, 'B'))       # 第三个执行
+    # 阻塞启动事件循环，顺便再添加一个任务
+    loop.run_until_complete(work(3, 'C'))  # 第四个执行
+
+
+if __name__ == "__main__":
+    main()
+
+(async_network) [root@VM_0_16_centos async_network]# python -u "/home/jesse/async_network/s3/call_soon.py"
+[work] start A
+[hello] Hello, Tom
+[work] start B
+[work] start C
+[work] A after 1s stop
+[work] B after 2s stop
+[work] C after 3s stop
+```
+
+#### asyncio.call_later 排定普通函数并异步延时调用
+
+此方法同 loop.call_soon 一样，可将普通函数作为任务放到事件循环里，不同之处在于此方法可延时执行，第一个参数作为延时时间。
+
+```python
+import asyncio
+import functools
+
+
+def hello(name):
+    print('[hello] Hello, {}'.format(name))
+
+
+async def work(t, name):
+    print('[work {}] start'.format(name))
+    await asyncio.sleep(t)
+    print('[work {}] stop'.format(name))
+
+
+def main():
+    loop = asyncio.get_event_loop()
+    asyncio.ensure_future(work(1, 'A'))
+    loop.call_later(1.2, hello, 'Tom')
+    loop.call_soon(hello, 'Kitty')
+    task4 = loop.create_task(work(2, 'B'))
+    loop.call_later(1, hello, 'Jerry')
+    loop.run_until_complete(task4)
+
+
+if __name__ == "__main__":
+    main()
+
+
+(async_network) [root@VM_0_16_centos async_network]# python -u "/home/jesse/async_network/s3/call_later.py"
+[work A] start  # 执行任务①，打印以上内容，阻塞一秒；然后执行任务②，阻塞一点二秒
+[hello] Hello, Kitty  # 执行任务③，打印以上内容
+[work B] start  # 执行任务④，打印以上内容，阻塞两秒；然后执行任务⑤，阻塞一秒
+[hello] Hello, Jerry  # 阻塞结束 call_later这个延时一秒是事件循环启动时就开始计时的，所以比任务①先执行
+[work A] stop  # 阻塞结束 接着执行任务①
+[hello] Hello, Tom  # 阻塞结束 接着执行任务②
+[work B] stop  # 阻塞结束 接着执行任务④
+```
+
+**call_later 的阻塞计时是从事件循环启动时开始计算的**。
+
+#### loop.call_at & loop.time 排定普通任务并异步指定时刻调用
+
+- call_soon 立刻执行，call_later 延时执行，call_at 在某时刻执行
+
+- loop.time 就是事件循环内部的一个计时方法，返回值是时刻，数据类型是 float
+
+修改以上`call_later.py`代码如下：
+
+```python
+def main():
+    loop = asyncio.get_event_loop()
+    start = loop.time()
+    asyncio.ensure_future(work(1, 'A'))
+    # loop.call_later(1.2, hello, 'Tom')
+    loop.call_at(start+1.2, hello, 'Tom')
+    loop.call_soon(hello, 'Kitty')
+    task4 = loop.create_task(work(2, 'B'))
+    # loop.call_later(1, hello, 'Jerry')
+    loop.call_at(start+1, hello, 'Jerry')
+    loop.run_until_complete(task4)
+```
+
+此代码的运行结果与`call_later.py`代码一致。
+
+这三个 call_xxx 方法的作用都是将普通函数作为任务排定到事件循环中，返回值都是 asyncio.events.TimerHandle 实例，注意它们不是协程任务，不能作为 loop.run_until_complete 的参数。
